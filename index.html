@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>潜る</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="潜る">
+<meta name="theme-color" content="#060F17">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --abyss:#060F17; --deep:#0C2430; --mid:#17505F;
+  --lumen:#8FDCC7; --sand:#E9E4D8; --amber:#E2A15E; --rust:#C46A4A;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho",YuMincho,"Noto Serif JP",serif;
+  --sans:"Hiragino Sans","Noto Sans JP","Helvetica Neue",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{
+  background:var(--abyss);color:var(--sand);font-family:var(--sans);
+  overflow:hidden;transition:background-color 1.4s linear;
+  -webkit-user-select:none;user-select:none;
+}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:max(18px,env(safe-area-inset-top)) 20px max(18px,env(safe-area-inset-bottom))}
+#halo{position:absolute;left:50%;top:50%;width:min(88vw,540px);aspect-ratio:1;
+  transform:translate(-50%,-50%) scale(.6);border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(143,220,199,.20) 0%,rgba(143,220,199,.07) 42%,transparent 68%)}
+#gauge{position:absolute;left:20px;top:23%;bottom:23%;width:2px;
+  background:linear-gradient(to bottom,rgba(233,228,216,.05),rgba(233,228,216,.22))}
+#marker{position:absolute;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--lumen);
+  box-shadow:0 0 14px 3px rgba(143,220,199,.55);transition:top .9s cubic-bezier(.4,0,.5,1)}
+#depthNum{position:absolute;left:36px;top:50%;transform:translateY(-50%);
+  font:400 11px/1 var(--mono);color:rgba(143,220,199,.7);letter-spacing:.1em}
+
+.view{flex:1;display:none;flex-direction:column;position:relative;z-index:2;min-height:0}
+.view.on{display:flex}
+.mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:0}
+.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;padding:4px 0 12px}
+
+h1{font-family:var(--mincho);font-size:clamp(38px,12vw,64px);font-weight:400;letter-spacing:.34em;text-indent:.34em}
+.eyebrow{font:400 10px/1 var(--mono);letter-spacing:.4em;text-indent:.4em;color:rgba(143,220,199,.6);margin-bottom:22px}
+.sub{margin-top:16px;font-size:12.5px;line-height:2;color:rgba(233,228,216,.5);letter-spacing:.04em}
+.tiny{font-size:10.5px;line-height:1.9;color:rgba(233,228,216,.32);letter-spacing:.03em}
+
+#line{font-family:var(--mincho);font-size:clamp(20px,5.4vw,29px);line-height:2.05;letter-spacing:.06em;
+  max-width:19em;opacity:0;transition:opacity 1.1s ease}
+#line.on{opacity:1}
+#breath{margin-top:32px;font:400 11px/1 var(--mono);letter-spacing:.4em;text-indent:.4em;
+  color:rgba(233,228,216,.4);min-height:11px}
+#clock{font:200 clamp(62px,19vw,104px)/1 var(--mono);letter-spacing:.01em;color:var(--amber)}
+
+.field{margin:0 auto 20px;width:100%;max-width:340px;text-align:left}
+.field label{display:block;font:400 10px/1 var(--mono);letter-spacing:.2em;color:rgba(233,228,216,.4);margin-bottom:9px}
+.field input[type=text]{width:100%;background:transparent;border:0;border-bottom:1px solid rgba(233,228,216,.22);
+  color:var(--sand);font:400 16px/1.6 var(--mincho);padding:6px 2px;letter-spacing:.05em}
+.field input:focus{outline:none;border-bottom-color:var(--lumen)}
+.field input::placeholder{color:rgba(233,228,216,.2)}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{flex:1;min-width:64px;background:transparent;border:1px solid rgba(233,228,216,.2);border-radius:2px;
+  color:rgba(233,228,216,.55);font:400 12px/1 var(--sans);letter-spacing:.1em;padding:12px 4px;cursor:pointer;
+  transition:border-color .25s,color .25s,background-color .25s}
+.seg button.sel{border-color:var(--lumen);color:var(--lumen);background:rgba(143,220,199,.07)}
+.seg button:focus-visible{outline:2px solid var(--lumen);outline-offset:2px}
+
+.btn{font:400 13px/1 var(--sans);letter-spacing:.22em;text-indent:.22em;color:var(--sand);background:transparent;
+  border:1px solid rgba(233,228,216,.28);border-radius:2px;padding:15px 32px;cursor:pointer;
+  transition:border-color .3s,color .3s}
+.btn:hover,.btn:focus-visible{border-color:var(--lumen);color:var(--lumen)}
+.btn:focus-visible{outline:2px solid var(--lumen);outline-offset:3px}
+.btn.ghost{border-color:transparent;color:rgba(233,228,216,.38);padding:11px 14px;font-size:11px;letter-spacing:.14em}
+.btn.ghost:hover{color:var(--sand)}
+.btn.wide{width:100%;max-width:340px}
+footer{display:flex;flex-direction:column;align-items:center;gap:13px;position:relative;z-index:3;padding-top:14px}
+.row{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center}
+label.ctl{display:flex;align-items:center;gap:8px;font:400 10px/1 var(--mono);letter-spacing:.14em;color:rgba(233,228,216,.4)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:80px;height:1px;background:rgba(233,228,216,.28)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--lumen)}
+input[type=checkbox]{accent-color:var(--lumen);width:13px;height:13px}
+
+#tapzone{position:absolute;inset:0;z-index:1;cursor:pointer}
+#drift{font:400 11px/1 var(--mono);letter-spacing:.18em;color:rgba(226,161,94,.55);margin-top:26px;min-height:12px}
+#anchorHint{position:absolute;bottom:24%;left:0;right:0;text-align:center;font-family:var(--mincho);
+  font-size:14px;letter-spacing:.16em;color:rgba(226,161,94,.75);opacity:0;transition:opacity 1.4s ease;pointer-events:none}
+#anchorHint.on{opacity:1}
+
+.rate{display:flex;gap:9px;justify-content:center;margin:22px 0 6px}
+.rate button{width:50px;height:50px;border-radius:50%;background:transparent;border:1px solid rgba(233,228,216,.22);
+  color:rgba(233,228,216,.6);font:400 15px/1 var(--mono);cursor:pointer;transition:all .25s}
+.rate button.sel{border-color:var(--amber);color:var(--amber);background:rgba(226,161,94,.1)}
+
+.card{border:1px solid rgba(233,228,216,.12);border-radius:2px;padding:16px 16px 14px;margin:0 auto 14px;max-width:400px;width:100%}
+.card h3{font:400 10px/1 var(--mono);letter-spacing:.24em;color:rgba(143,220,199,.6);margin-bottom:12px}
+.card p{font-size:12.5px;line-height:1.95;color:rgba(233,228,216,.62);letter-spacing:.03em}
+.card p em{font-style:normal;color:var(--lumen)}
+.kv{display:flex;justify-content:space-between;font:400 11px/2.1 var(--mono);color:rgba(233,228,216,.5);letter-spacing:.06em}
+.kv b{font-weight:400;color:var(--sand)}
+svg.chart{width:100%;height:70px;display:block;margin-top:6px}
+
+body.surfaced{background:#170F0A}
+body.surfaced #halo{background:radial-gradient(circle,rgba(226,161,94,.14) 0%,rgba(226,161,94,.04) 45%,transparent 70%)}
+body.surfaced .eyebrow{color:rgba(226,161,94,.6)}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){
+  #halo{transform:translate(-50%,-50%) scale(.85)!important}
+  #marker{transition:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="halo"></div>
+  <div id="gauge" class="hidden"><div id="marker" style="top:0"></div></div>
+  <div id="depthNum" class="hidden">0.0 m</div>
+
+  <!-- 1. 設定 -->
+  <section class="view on" id="v-setup">
+    <div class="mid">
+      <h1>潜る</h1>
+      <p class="sub" id="setupSub">沈んで、暗示を置いて、机へ上がる。</p>
+    </div>
+    <div class="scroll">
+      <div class="field">
+        <label>今日やること</label>
+        <input type="text" id="subject" placeholder="例：世界史の近代" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>最初の一手（具体的に）</label>
+        <input type="text" id="firstMove" placeholder="例：p.142の年表を音読する" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>誘導</label>
+        <div class="seg" id="modeSeg">
+          <button data-mode="full">フル 6分</button>
+          <button data-mode="short">短縮 100秒</button>
+          <button data-mode="instant">即時 25秒</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>作業時間</label>
+        <div class="seg" id="lenSeg">
+          <button data-len="25">25分</button>
+          <button data-len="45">45分</button>
+          <button data-len="50">50分</button>
+        </div>
+      </div>
+      <div class="card" id="advice"><h3>いまの推奨</h3><p id="adviceText">まず5回、同じ時刻に。</p></div>
+    </div>
+    <footer>
+      <button class="btn wide" id="go">は じ め る</button>
+      <div class="row">
+        <button class="btn ghost" id="toLog">記録</button>
+        <button class="btn ghost" id="toCalib">被暗示性テスト</button>
+      </div>
+      <p class="tiny">目を閉じて座った状態で。運転中・機械操作中・入浴中は使わない。</p>
+    </footer>
+  </section>
+
+  <!-- 2. 誘導 -->
+  <section class="view" id="v-dive">
+    <div class="mid">
+      <div class="eyebrow" id="divePhase"></div>
+      <div id="line"></div>
+      <div id="breath"></div>
+    </div>
+    <footer>
+      <div class="row">
+        <button class="btn ghost" id="skipDive">誘導を飛ばして机へ</button>
+        <button class="btn ghost" id="abortDive">中断して上がる</button>
+      </div>
+      <div class="row">
+        <label class="ctl">音量<input type="range" id="vol" min="0" max="100" value="40"></label>
+        <label class="ctl"><input type="checkbox" id="voice" checked>読み上げ</label>
+      </div>
+    </footer>
+  </section>
+
+  <!-- 3. 作業 -->
+  <section class="view" id="v-study">
+    <div id="tapzone"></div>
+    <div class="mid">
+      <div class="eyebrow" id="studyTask"></div>
+      <div id="clock">25:00</div>
+      <div id="drift">画面をタップ＝気が散った回数</div>
+    </div>
+    <div id="anchorHint">指を合わせて、息をひとつ吐く</div>
+    <footer>
+      <button class="btn ghost" id="endStudy" style="position:relative;z-index:4">終える</button>
+    </footer>
+  </section>
+
+  <!-- 4. 記録 -->
+  <section class="view" id="v-review">
+    <div class="mid">
+      <div class="eyebrow">記録</div>
+      <p class="sub" style="margin:0">どのくらい入り込めた？</p>
+      <div class="rate" id="rate">
+        <button data-r="1">1</button><button data-r="2">2</button><button data-r="3">3</button>
+        <button data-r="4">4</button><button data-r="5">5</button>
+      </div>
+      <p class="tiny" id="reviewStat"></p>
+    </div>
+    <footer><button class="btn wide" id="saveReview">保 存</button></footer>
+  </section>
+
+  <!-- 5. 履歴 -->
+  <section class="view" id="v-log">
+    <div class="scroll" id="logBody" style="padding-top:26px"></div>
+    <footer><button class="btn wide" id="backFromLog">戻 る</button></footer>
+  </section>
+
+  <!-- 6. 被暗示性テスト -->
+  <section class="view" id="v-calib">
+    <div class="mid">
+      <div class="eyebrow" id="calibPhase">腕の重さテスト</div>
+      <div id="calibLine" style="font-family:var(--mincho);font-size:clamp(19px,5vw,26px);line-height:2.1;max-width:19em"></div>
+      <div class="rate hidden" id="calibRate">
+        <button data-c="0">0</button><button data-c="3">3</button><button data-c="6">6</button>
+        <button data-c="8">8</button><button data-c="10">10</button>
+      </div>
+      <p class="tiny hidden" id="calibHelp" style="margin-top:18px">0＝何も感じない ／ 10＝腕が勝手に下がった</p>
+    </div>
+    <footer>
+      <button class="btn wide" id="calibGo">は じ め る</button>
+      <button class="btn ghost" id="calibBack">戻る</button>
+    </footer>
+  </section>
+</div>
+
+<script>
+/* ══════════ 保存層（PWA=localStorage / 埋め込み=window.storage / だめなら記憶のみ） ══════════ */
+const KEY="dive:v2";
+const DB={
+  async load(){
+    try{ if(window.storage){const r=await window.storage.get(KEY); return JSON.parse(r.value);} }catch(e){}
+    try{ const s=localStorage.getItem(KEY); if(s) return JSON.parse(s); }catch(e){}
+    return null;
+  },
+  async save(o){
+    const s=JSON.stringify(o);
+    try{ if(window.storage){await window.storage.set(KEY,s); return;} }catch(e){}
+    try{ localStorage.setItem(KEY,s); }catch(e){}
+  }
+};
+let S={sessions:[],calib:null,lastSubject:"",lastMove:"",mode:"full",len:25};
+
+/* ══════════ 誘導スクリプト生成 ══════════
+   ここを書き換えれば内容が変わる。at=開始からの秒数。
+   {S}=今日やること {M}=最初の一手 に置換される。 */
+function buildScript(mode, deep){
+  const F=[
+    [0,  "導入","楽な姿勢で座って、目を閉じてください。"],
+    [12, "導入","これから六分間、机に向かうための準備をします。"],
+    [25, "導入","合図に合わせて呼吸します。吸って……止めて……長く吐く。"],
+    [42, "導入","吐く息のたびに、肩の力が抜けていきます。"],
+    [56, "導入","額と、目の周りの力を抜きます。"],
+    [69, "導入","顎を軽く緩め、首の後ろをほどきます。"],
+    [83, "導入","肩が下がり、腕が重くなります。"],
+    [97, "導入","背中、腰、太もも、ふくらはぎ。順に重さを預けていきます。"],
+    [113,"導入","体が椅子に沈み、輪郭がぼやけていきます。"],
+    [129,"導入","聞こえてくる音は、どれも遠くの出来事です。"],
+    [141,"導入","そのまま、もう少しだけ深く。"],
+    [150,"深化","十から一まで数えます。数が減るごとに、一段ずつ深く沈みます。"],
+    [164,"深化","十……九……八……"],
+    [176,"深化","七……六……五……深く、静かに。"],
+    [188,"深化","四……三……二……"],
+    [199,"深化","一。いちばん深いところ。"],
+    [210,"暗示","今日やることは、{S}。"],
+    [220,"暗示","最初の一手は、{M}。それだけを始めます。"],
+    [233,"暗示","机に向かうと、視界が自然に狭くなります。"],
+    [245,"暗示","見えているのは、目の前の一ページだけ。"],
+    [257,"暗示","スマホに手が伸びたら、指を合わせて、息をひとつ吐く。そして次の一行に戻る。"],
+    [273,"暗示","時計を見たくなったら、指を合わせる。それが合図です。"],
+    [286,"暗示","集中は、掴みにいくものではなく、戻ってくるものです。"],
+    [300,"錨","では、この状態に合図をつけます。"],
+    [311,"錨","左手の親指と人差し指を、軽く合わせてください。"],
+    [323,"錨","この静けさと、狭い視界が、指先に結びつきます。"],
+    [334,"錨","勉強中にもう一度この指を合わせれば、同じ状態が戻ります。"],
+    [346,"浮上","では、上がります。呼吸を少しだけ速めます。"],
+    [355,"浮上","一、二……体に感覚が戻ります。"],
+    [364,"浮上","三、四……肩を二度、回してください。"],
+    [374,"浮上","五。目を開けて、机の一点を見ます。眠気ではなく、静かな覚醒。"],
+    [384,"浮上","{M}から。"]
+  ];
+  const SH=[
+    [0, "再接続","目を閉じて。三回、長く吐きます。"],
+    [12,"再接続","一回目……肩が下がる。"],
+    [22,"再接続","二回目……顎がゆるむ。"],
+    [32,"再接続","三回目……三、二、一。あの深さに戻ります。"],
+    [44,"錨","左手の親指と人差し指を、合わせてください。"],
+    [54,"錨","同じ静けさが、指先から戻ってきます。"],
+    [64,"暗示","今日は{S}。最初は{M}。それだけ。"],
+    [76,"暗示","気が散ったら、指を合わせて息を吐き、次の一行に戻る。"],
+    [88,"浮上","肩を二度回して、目を開けます。"],
+    [96,"浮上","机の一点を見て、{M}から。"]
+  ];
+  const IN=[
+    [0, "即時","目を閉じて、指を合わせます。"],
+    [7, "即時","長く、吐く。"],
+    [14,"即時","{M}。それだけ。"],
+    [21,"即時","目を開けて、はじめます。"]
+  ];
+  let raw = mode==="full"?F : mode==="short"?SH : IN;
+  if(mode==="full" && !deep){                       // 被暗示性が低い→深化を圧縮して暗示に比重
+    raw = raw.filter(r=>!(r[0]>=164 && r[0]<199));
+    raw = raw.map(r=> r[0]>=199 ? [r[0]-30,r[1],r[2]] : r);
+  }
+  return raw.map(r=>({at:r[0],p:r[1],t:r[2]}));
+}
+const TOTALS={full:396,short:106,instant:28};
+
+/* ══════════ 状態 ══════════ */
+const $=id=>document.getElementById(id);
+const views=["setup","dive","study","review","log","calib"];
+function view(n){views.forEach(v=>$("v-"+v).classList.toggle("on",v===n));}
+let mode="full", len=25, script=[], total=0, t0=0, raf=null, cue=0, phase="idle";
+let drifts=[], driftCount=0, sessStart=null, wake=null, jaVoice=null, pendingRate=null;
+const reduced=matchMedia("(prefers-reduced-motion:reduce)").matches;
+const BR={in:4,hold:2,out:6};
+
+/* ── 音 ── */
+let ac=null,master=null;
+function audioInit(){
+  if(ac) return;
+  ac=new (window.AudioContext||window.webkitAudioContext)();
+  master=ac.createGain(); master.gain.value=0;
+  const lp=ac.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=420;
+  master.connect(lp); lp.connect(ac.destination);
+  [55,55.4,110.2].forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();
+    o.type="sine";o.frequency.value=f;g.gain.value=i===2?.18:.5;o.connect(g);g.connect(master);o.start();});
+  const lfo=ac.createOscillator(),lg=ac.createGain();
+  lfo.type="sine";lfo.frequency.value=.06;lg.gain.value=.035;lfo.connect(lg);lg.connect(master.gain);lfo.start();
+  setVol();
+}
+function setVol(){ if(master) master.gain.setTargetAtTime($("vol").value/100*.16, ac.currentTime,.6); }
+function audioFade(){ if(master) master.gain.setTargetAtTime(0, ac.currentTime,.8); }
+$("vol").addEventListener("input",setVol);
+
+/* ── 声 ── */
+function pickVoice(){
+  const vs=speechSynthesis.getVoices();
+  jaVoice=vs.find(v=>/ja[-_]JP/i.test(v.lang))||vs.find(v=>/^ja/i.test(v.lang))||null;
+}
+speechSynthesis.addEventListener&&speechSynthesis.addEventListener("voiceschanged",pickVoice);
+pickVoice();
+function say(t){
+  if(!$("voice").checked) return;
+  const u=new SpeechSynthesisUtterance(t.replace(/……/g,"、、"));
+  if(jaVoice)u.voice=jaVoice;
+  u.lang="ja-JP";u.rate=.74;u.pitch=.92;
+  speechSynthesis.speak(u);
+}
+async function keepAwake(){ try{ wake=await navigator.wakeLock.request("screen"); }catch(e){} }
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&phase!=="idle") keepAwake(); });
+
+/* ══════════ 誘導 ══════════ */
+function fill(t){ return t.replace(/\{S\}/g,S.lastSubject||"今日の範囲").replace(/\{M\}/g,S.lastMove||"最初の一問"); }
+
+async function startDive(){
+  audioInit(); if(ac.state==="suspended") await ac.resume();
+  keepAwake();
+  const deep = S.calib===null || S.calib>=4;
+  script=buildScript(mode,deep);
+  total = mode==="full" ? (deep?TOTALS.full:TOTALS.full-30) : TOTALS[mode];
+  cue=0; t0=performance.now(); phase="dive"; sessStart=new Date();
+  view("dive"); document.body.classList.remove("surfaced");
+  if(mode==="full"){ $("gauge").classList.remove("hidden"); $("depthNum").classList.remove("hidden"); }
+  loop();
+}
+function showLine(c){
+  const el=$("line"); el.classList.remove("on");
+  setTimeout(()=>{el.textContent=fill(c.t);el.classList.add("on");},reduced?0:280);
+  $("divePhase").textContent=c.p; say(fill(c.t));
+}
+function depthAt(s){
+  const d1=total*0.53, d2=total*0.88;
+  if(s<=d1) return 10*s/d1;
+  if(s<=d2) return 10;
+  return 10*Math.max(0,1-(s-d2)/(total-d2));
+}
+function breathAt(s){
+  const cyc=BR.in+BR.hold+BR.out, x=s%cyc;
+  if(x<BR.in) return {l:"吸 う",k:x/BR.in};
+  if(x<BR.in+BR.hold) return {l:"止 め る",k:1};
+  return {l:"吐 く",k:1-(x-BR.in-BR.hold)/BR.out};
+}
+function loop(){
+  raf=requestAnimationFrame(loop);
+  const s=(performance.now()-t0)/1000;
+  if(phase==="dive"){
+    while(cue<script.length&&s>=script[cue].at) showLine(script[cue++]);
+    const b=breathAt(s);
+    $("breath").textContent=b.l;
+    if(!reduced)$("halo").style.transform=`translate(-50%,-50%) scale(${.55+b.k*.45})`;
+    if(mode==="full"){
+      const d=depthAt(s);
+      $("marker").style.top=(d/10*100)+"%";
+      $("depthNum").textContent=d.toFixed(1)+" m";
+      $("app").style.background=`linear-gradient(180deg,rgba(23,80,95,${.30-d/10*.26}) 0%,rgba(6,15,23,1) ${60-d/10*25}%)`;
+    }
+    if(s>=total+8) toStudy();
+  }
+  if(phase==="study"){
+    const left=Math.max(0,len*60-s);
+    $("clock").textContent=String(Math.floor(left/60)).padStart(2,"0")+":"+String(Math.floor(left%60)).padStart(2,"0");
+    if(!reduced)$("halo").style.transform=`translate(-50%,-50%) scale(${.8+Math.sin(s/9)*.05})`;
+    const hint=Math.floor(s/300)!==Math.floor((s-.05)/300)&&s>60;
+    if(hint){ $("anchorHint").classList.add("on"); setTimeout(()=>$("anchorHint").classList.remove("on"),7000); }
+    if(left<=0) endStudy(true);
+  }
+}
+function toStudy(){
+  phase="study"; t0=performance.now(); driftCount=0; drifts=[];
+  speechSynthesis.cancel();
+  document.body.classList.add("surfaced"); $("app").style.background="";
+  $("gauge").classList.add("hidden"); $("depthNum").classList.add("hidden");
+  $("studyTask").textContent=(S.lastMove||"はじめる").slice(0,22);
+  $("drift").textContent="画面をタップ＝気が散った回数";
+  view("study");
+}
+$("tapzone").addEventListener("click",()=>{
+  if(phase!=="study")return;
+  driftCount++; drifts.push(Math.round((performance.now()-t0)/1000));
+  $("drift").textContent="気が散った "+driftCount+" 回 ／ 指を合わせて、息を吐く";
+  if(navigator.vibrate) navigator.vibrate(12);
+});
+function endStudy(auto){
+  if(auto) say("時間です。一度立ち上がって、体を伸ばします。");
+  cancelAnimationFrame(raf); phase="review";
+  const mins=Math.min(len,Math.round((performance.now()-t0)/60000));
+  $("reviewStat").textContent=mins+"分 ／ 気が散った "+driftCount+" 回";
+  pendingRate=null;
+  document.querySelectorAll("#rate button").forEach(b=>b.classList.remove("sel"));
+  view("review");
+}
+
+/* ══════════ 記録・分析 ══════════ */
+async function saveSession(){
+  if(pendingRate===null){ $("saveReview").textContent="1〜5 を選ぶ";
+    setTimeout(()=>$("saveReview").textContent="保 存",1600); return; }
+  S.sessions.push({d:Date.now(),h:sessStart?sessStart.getHours():new Date().getHours(),
+    m:mode,len,r:pendingRate,x:driftCount});
+  S.sessions=S.sessions.slice(-120);
+  await DB.save(S);
+  audioFade(); wake&&wake.release&&wake.release(); wake=null; phase="idle";
+  document.body.classList.remove("surfaced");
+  $("halo").style.transform="translate(-50%,-50%) scale(.6)";
+  renderAdvice(); view("setup");
+}
+function avg(a){ return a.length? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+function analyse(){
+  const s=S.sessions, n=s.length, out=[];
+  if(n<5){ out.push({t:`記録が ${n}/5 回。まず同じ時刻に5回、フルで回す。効き目の判定はそれから。`}); return out; }
+  const full=s.filter(x=>x.m==="full"), sh=s.filter(x=>x.m==="short");
+  const last3=s.slice(-3);
+  if(mode!=="short" && last3.length===3 && last3.every(x=>x.r>=4) && last3.every(x=>x.m==="full"))
+    out.push({t:"3回続けて4以上。<em>短縮100秒</em>に移していい頃。誘導が短いほど毎日続く。"});
+  if(sh.length>=3 && avg(sh.slice(-3).map(x=>x.r))<3 && avg(full.map(x=>x.r))>=3.5)
+    out.push({t:"短縮だと落ちている。<em>週に1回はフル</em>を挟んで錨を打ち直す。"});
+  const byH={};
+  s.forEach(x=>{ (byH[x.h]=byH[x.h]||[]).push(x.r); });
+  const hs=Object.entries(byH).filter(([,v])=>v.length>=3).sort((a,b)=>avg(b[1])-avg(a[1]));
+  if(hs.length>=2) out.push({t:`いちばん入り込めているのは <em>${hs[0][0]}時台</em>（平均${avg(hs[0][1]).toFixed(1)}）、悪いのは ${hs[hs.length-1][0]}時台。可能なら前者に寄せる。`});
+  const recentX=avg(s.slice(-5).map(x=>x.x));
+  if(recentX>=6) out.push({t:`直近5回の中断が平均${recentX.toFixed(1)}回。作業時間を<em>25分</em>に落とすか、スマホを別室に置く。`});
+  const l45=s.filter(x=>x.len>=45), l25=s.filter(x=>x.len===25);
+  if(l45.length>=3&&l25.length>=3){
+    const d=avg(l45.map(x=>x.r))-avg(l25.map(x=>x.r));
+    if(Math.abs(d)>=0.5) out.push({t:`${d>0?"45分以上":"25分"}のほうが平均${Math.abs(d).toFixed(1)}高い。そちらに固定。`});
+  }
+  if(S.calib!==null&&S.calib<=3) out.push({t:"被暗示性テストは低め。深い誘導より<em>手順の固定と if-then</em>が効くタイプ。短縮モード中心でいい。"});
+  if(!out.length) out.push({t:"いまの組み合わせで安定している。変えずに続ける。"});
+  return out;
+}
+function renderAdvice(){ $("adviceText").innerHTML=analyse().map(o=>o.t).join("<br><br>"); }
+function renderLog(){
+  const s=S.sessions.slice(-14), b=$("logBody");
+  if(!S.sessions.length){ b.innerHTML='<p class="tiny" style="text-align:center">まだ記録がない。</p>'; return; }
+  const w=100/Math.max(s.length,1);
+  const bars=s.map((x,i)=>{
+    const h=x.r/5*54, col=x.m==="full"?"#8FDCC7":x.m==="short"?"#E2A15E":"#C46A4A";
+    return `<rect x="${i*w+w*.18}%" y="${60-h}" width="${w*.64}%" height="${h}" fill="${col}" opacity=".8"/>`;
+  }).join("");
+  const all=S.sessions;
+  b.innerHTML=`
+   <div class="card"><h3>直近14回の集中度</h3>
+     <svg class="chart" viewBox="0 0 100 70" preserveAspectRatio="none">${bars}
+       <line x1="0" y1="60" x2="100" y2="60" stroke="rgba(233,228,216,.2)" stroke-width=".4"/></svg>
+     <p class="tiny" style="margin-top:8px">緑＝フル ／ 橙＝短縮 ／ 赤＝即時</p>
+   </div>
+   <div class="card"><h3>集計</h3>
+     <div class="kv"><span>総セッション</span><b>${all.length}</b></div>
+     <div class="kv"><span>平均集中度</span><b>${avg(all.map(x=>x.r)).toFixed(2)}</b></div>
+     <div class="kv"><span>平均中断回数</span><b>${avg(all.map(x=>x.x)).toFixed(1)}</b></div>
+     <div class="kv"><span>総学習時間</span><b>${Math.round(all.reduce((a,x)=>a+x.len,0)/60)} 時間</b></div>
+     <div class="kv"><span>被暗示性</span><b>${S.calib===null?"未測定":S.calib+" / 10"}</b></div>
+   </div>
+   <div class="card"><h3>分析</h3><p>${analyse().map(o=>o.t).join("<br><br>")}</p></div>`;
+}
+
+/* ══════════ 被暗示性テスト ══════════ */
+const CAL=[
+  [0,"左腕をまっすぐ前に伸ばし、手のひらを上に向けます。目は閉じたまま。"],
+  [10,"その手のひらに、分厚い辞書が置かれるのを想像します。"],
+  [20,"重い。ずっしりと重い。腕が少しずつ下がっていきます。"],
+  [32,"さらに二冊、重ねられます。腕が耐えられなくなっていきます。"],
+  [44,"重い、重い、どんどん下がる。"],
+  [54,"はい、終わりです。目を開けて、腕を下ろしてください。"]
+];
+let calT=null;
+$("calibGo").addEventListener("click",()=>{
+  $("calibGo").classList.add("hidden");
+  let i=0; const t=performance.now();
+  const tick=()=>{
+    const s=(performance.now()-t)/1000;
+    while(i<CAL.length&&s>=CAL[i][0]){ $("calibLine").textContent=CAL[i][1]; say(CAL[i][1]); i++; }
+    if(s<62) calT=requestAnimationFrame(tick);
+    else{ $("calibLine").textContent="腕はどれくらい下がった？";
+      $("calibRate").classList.remove("hidden"); $("calibHelp").classList.remove("hidden"); }
+  };
+  audioInit(); tick();
+});
+$("calibRate").addEventListener("click",async e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  S.calib=+b.dataset.c; await DB.save(S);
+  renderAdvice(); resetCalib(); view("setup");
+});
+function resetCalib(){
+  cancelAnimationFrame(calT); speechSynthesis.cancel();
+  $("calibGo").classList.remove("hidden"); $("calibRate").classList.add("hidden");
+  $("calibHelp").classList.add("hidden");
+  $("calibLine").textContent="腕が重くなる感じを試して、誘導の深さを自動で調整する。50秒。";
+}
+
+/* ══════════ 画面遷移 ══════════ */
+function seg(id,attr,cb){
+  $(id).addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b)return;
+    $(id).querySelectorAll("button").forEach(x=>x.classList.remove("sel"));
+    b.classList.add("sel"); cb(b.dataset[attr]);
+  });
+}
+seg("modeSeg","mode",v=>{mode=v;S.mode=v;DB.save(S)});
+seg("lenSeg","len",v=>{len=+v;S.len=+v;DB.save(S)});
+$("rate").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  document.querySelectorAll("#rate button").forEach(x=>x.classList.remove("sel"));
+  b.classList.add("sel"); pendingRate=+b.dataset.r;
+});
+$("go").addEventListener("click",async()=>{
+  S.lastSubject=$("subject").value.trim(); S.lastMove=$("firstMove").value.trim();
+  await DB.save(S); startDive();
+});
+$("skipDive").addEventListener("click",()=>{speechSynthesis.cancel();toStudy();});
+$("abortDive").addEventListener("click",()=>{
+  speechSynthesis.cancel(); say("三つ数えて上がります。一、二、三。目を開けてください。");
+  setTimeout(()=>{cancelAnimationFrame(raf);phase="idle";audioFade();
+    document.body.classList.remove("surfaced");$("app").style.background="";
+    $("gauge").classList.add("hidden");$("depthNum").classList.add("hidden");view("setup");},4200);
+});
+$("endStudy").addEventListener("click",()=>endStudy(false));
+$("saveReview").addEventListener("click",saveSession);
+$("toLog").addEventListener("click",()=>{renderLog();view("log")});
+$("backFromLog").addEventListener("click",()=>view("setup"));
+$("toCalib").addEventListener("click",()=>{resetCalib();view("calib")});
+$("calibBack").addEventListener("click",()=>{resetCalib();view("setup")});
+
+/* ══════════ 起動 ══════════ */
+(async()=>{
+  const saved=await DB.load(); if(saved) S={...S,...saved};
+  mode=S.mode||"full"; len=S.len||25;
+  $("subject").value=S.lastSubject||""; $("firstMove").value=S.lastMove||"";
+  document.querySelector(`#modeSeg [data-mode="${mode}"]`)?.classList.add("sel");
+  document.querySelector(`#lenSeg [data-len="${len}"]`)?.classList.add("sel");
+  resetCalib(); renderAdvice();
+  if(S.sessions.length) $("setupSub").textContent=`通算 ${S.sessions.length} 回 ／ 平均 ${avg(S.sessions.map(x=>x.r)).toFixed(1)}`;
+})();
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>

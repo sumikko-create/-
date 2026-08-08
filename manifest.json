@@ -1,0 +1,17 @@
+{
+  "name": "潜る — 勉強前の6分",
+  "short_name": "潜る",
+  "description": "自己催眠で集中に入り、そのまま作業に移るための個人用アプリ",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#060F17",
+  "theme_color": "#060F17",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
