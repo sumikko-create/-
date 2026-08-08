@@ -1,6 +1,6 @@
 /* オフラインで動かすための最小サービスワーカー。
    index.html を編集したら CACHE の日付を変える（そうしないと古いのが出る）。 */
-const CACHE = "dive-2026-08-07";
+const CACHE = "dive-2026-08-08-v3";
 const FILES = ["./", "./index.html", "./manifest.json", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
